@@ -22,6 +22,7 @@ namespace OnTopReplica.Native {
         public const int NCLBUTTONDBLCLK = 0x00A3;
         public const int NCRBUTTONUP = 0x00A5;
         public const int NCMOUSELEAVE = 0x02A2;
+        public const int ENTERSIZEMOVE = 0x0231;
         public const int SYSCOMMAND = 0x0112;
         public const int GETTEXT = 0x000D;
         public const int GETTEXTLENGTH = 0x000E;

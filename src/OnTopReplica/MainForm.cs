@@ -120,6 +120,13 @@ namespace OnTopReplica {
         protected override void OnActivated(EventArgs e) {
             base.OnActivated(e);
 
+            //Do not restore the form while it is intentionally hidden waiting for the user
+            //to switch away from the target window (double-click restore feature).
+            if (IsWaitingForRestoreSwitch) {
+                Log.Write("DblClickRestore: OnActivated suppressed (waiting for restore switch)");
+                return;
+            }
+
             //Deactivate click-through if form is reactivated
             if (ClickThroughEnabled) {
                 ClickThroughEnabled = false;
@@ -130,6 +137,13 @@ namespace OnTopReplica {
 
         protected override void OnDeactivate(EventArgs e) {
             base.OnDeactivate(e);
+
+            //Do not toggle TopMost while waiting for restore switch — the toggle can
+            //reactivate the form, which fires OnActivated and fights with the hidden state.
+            if (IsWaitingForRestoreSwitch) {
+                Log.Write("DblClickRestore: OnDeactivate suppressed (waiting for restore switch)");
+                return;
+            }
 
             //HACK: sometimes, even if TopMost is true, the window loses its "always on top" status.
             //  This is a fix attempt that probably won't work...
@@ -160,7 +174,10 @@ namespace OnTopReplica {
             //This is handled by the WM_NCLBUTTONDBLCLK msg handler usually (because the GlassForm translates
             //clicks on client to clicks on caption). But if fullscreen mode disables GlassForm dragging, we need
             //this auxiliary handler to switch mode.
-            FullscreenManager.Toggle();
+            if (IsRestoreEnabled)
+                PerformDoubleClickRestore();
+            else
+                FullscreenManager.Toggle();
         }
 
         protected override void OnMouseClick(MouseEventArgs e) {
@@ -170,6 +187,10 @@ namespace OnTopReplica {
             if (e.Button == System.Windows.Forms.MouseButtons.Right) {
                 OpenContextMenu(null);
             }
+            else if (e.Button == System.Windows.Forms.MouseButtons.Left && IsRestoreEnabled) {
+                //Fallback for fullscreen mode where GlassForm translation is disabled
+                PerformDoubleClickRestore();
+            }
         }
 
         private ThumbnailPanel.RegionDrawnHandler _quickRegionDrawingHandler;
@@ -178,6 +199,28 @@ namespace OnTopReplica {
             if (_msgPumpManager != null) {
                 if (_msgPumpManager.PumpMessage(ref m)) {
                     return;
+                }
+            }
+
+            if (m.Msg == HookMethods.WM_SHELLHOOKMESSAGE) {
+                int hookCode = m.WParam.ToInt32();
+                if (hookCode == HookMethods.HSHELL_WINDOWACTIVATED ||
+                    hookCode == HookMethods.HSHELL_RUDEAPPACTIVATED) {
+                    IntPtr activated = m.LParam;
+
+                    //Restore OnTopReplica when the user switches away from the target window
+                    if (_restoreTargetHandle != IntPtr.Zero) {
+                        HandleRestoreWindowChange(activated);
+                    }
+
+                    //Auto-hide when target window gains focus (e.g. another window closed)
+                    if (_restoreTargetHandle == IntPtr.Zero &&
+                        IsRestoreEnabled &&
+                        CurrentThumbnailWindowHandle != null &&
+                        activated == CurrentThumbnailWindowHandle.Handle &&
+                        !Program.Platform.IsHidden(this)) {
+                        PerformDoubleClickRestore();
+                    }
                 }
             }
 
@@ -203,19 +246,27 @@ namespace OnTopReplica {
                         m.Result = IntPtr.Zero;
                         return;
                     }
+                    //Start single-click detection (timer cancelled by drag or double-click)
+                    if (m.WParam.ToInt32() == HT.CAPTION && IsRestoreEnabled) {
+                        StartSingleClickDetection();
+                    }
+                    break;
+
+                case WM.ENTERSIZEMOVE:
+                    //User started dragging — cancel single-click detection
+                    CancelSingleClickDetection();
                     break;
 
                 case WM.NCLBUTTONDBLCLK:
                     //Toggle fullscreen mode if double click on caption (whole glass area)
+                    CancelSingleClickDetection();
                     if (m.WParam.ToInt32() == HT.CAPTION) {
+                        Log.Write("DblClickRestore: WM_NCLBUTTONDBLCLK, IsRestoreEnabled={0}", IsRestoreEnabled);
                         if(!IsRestoreEnabled) {
                             FullscreenManager.Toggle();
                         }
                         else {
-                            if(CurrentThumbnailWindowHandle == null)
-                                return;
-                            Program.Platform.HideForm(this);
-                            Native.WindowManagerMethods.SetForegroundWindow(CurrentThumbnailWindowHandle.Handle);
+                            PerformDoubleClickRestore();
                         }
 
                         m.Result = IntPtr.Zero;
@@ -318,6 +369,8 @@ namespace OnTopReplica {
 
                 //Set aspect ratio (this will resize the form), do not refresh if in fullscreen
                 SetAspectRatio(_thumbnailPanel.ThumbnailPixelSize, !FullscreenManager.IsFullscreen);
+
+                StartStaticDetection();
             }
             catch (Exception ex) {
                 Log.WriteException("Unable to set new thumbnail", ex);
@@ -350,6 +403,8 @@ namespace OnTopReplica {
         /// Disables the cloned thumbnail.
         /// </summary>
         public void UnsetThumbnail() {
+            StopStaticDetection();
+
             //Unset handle
             CurrentThumbnailWindowHandle = null;
             _thumbnailPanel.UnsetThumbnail();

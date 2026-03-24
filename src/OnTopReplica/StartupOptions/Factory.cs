@@ -39,7 +39,8 @@ namespace OnTopReplica.StartupOptions {
                     (Settings.Default.RestoreLastShowChrome) ? "with chrome" : "without chrome");
             }
 
-            if (Settings.Default.RestoreLastWindow) {
+            //Always attempt to restore the last cloned window
+            if (Settings.Default.RestoreLastWindowHwnd != 0 || !string.IsNullOrEmpty(Settings.Default.RestoreLastWindowTitle)) {
                 var handle = Settings.Default.RestoreLastWindowHwnd;
                 var title = Settings.Default.RestoreLastWindowTitle;
                 var className = Settings.Default.RestoreLastWindowClass;

@@ -104,5 +104,25 @@ namespace OnTopReplica.Native {
 
         [DllImport("user32.dll")]
         public static extern IntPtr FindWindow(string className, string windowName);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct FLASHWINFO {
+            public uint cbSize;
+            public IntPtr hwnd;
+            public uint dwFlags;
+            public uint uCount;
+            public uint dwTimeout;
+        }
+
+        public const uint FLASHW_STOP = 0;
+        public const uint FLASHW_CAPTION = 1;
+        public const uint FLASHW_TRAY = 2;
+        public const uint FLASHW_ALL = 3;
+        public const uint FLASHW_TIMER = 4;
+        public const uint FLASHW_TIMERNOFG = 12;
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool FlashWindowEx(ref FLASHWINFO pwfi);
     }
 }

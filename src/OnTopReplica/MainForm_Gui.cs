@@ -70,6 +70,9 @@ namespace OnTopReplica {
         /// Ensures that the main form is visible (either closing the fullscreen mode or reactivating from task icon).
         /// </summary>
         public void EnsureMainFormVisible() {
+            //Cancel any pending restore-watch (double-click restore feature)
+            CancelRestoreWatch();
+
             //Reset special modes
             FullscreenManager.SwitchBack();
             ClickThroughEnabled = false;

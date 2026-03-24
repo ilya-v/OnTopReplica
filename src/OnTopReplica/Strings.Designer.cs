@@ -1229,7 +1229,25 @@ namespace OnTopReplica {
                 return ResourceManager.GetString("MenuRestoreLastTT", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   查詢類似 Double-click to restore 的當地語系化字串。
+        /// </summary>
+        internal static string MenuRestore {
+            get {
+                return ResourceManager.GetString("MenuRestore", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   查詢類似 When enabled, double-clicking the replica restores the window instead 的當地語系化字串。
+        /// </summary>
+        internal static string MenuRestoreTT {
+            get {
+                return ResourceManager.GetString("MenuRestoreTT", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   查詢類似 Settings... 的當地語系化字串。
         /// </summary>

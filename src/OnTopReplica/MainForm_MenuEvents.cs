@@ -162,6 +162,7 @@ namespace OnTopReplica {
 
         private void Menu_Restore_click(object sender, EventArgs e) {
             IsRestoreEnabled = !IsRestoreEnabled;
+            Log.Write("DblClickRestore: Menu toggle, IsRestoreEnabled={0}", IsRestoreEnabled);
         }
 
         private void Menu_Settings_click(object sender, EventArgs e) {
